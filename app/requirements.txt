@@ -1,0 +1,25 @@
+# API
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Image processing
+opencv-python-headless
+
+# Numerics & ML
+numpy
+scipy
+scikit-learn
+joblib
+
+# Visualization
+matplotlib
+
+# PDF generation
+reportlab
+
+# Type hints
+pydantic
+
+
+aiofiles

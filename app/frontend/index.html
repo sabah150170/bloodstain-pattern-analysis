@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<head>
+  <meta charset="UTF-8" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.152/build/three.module.js"
+    }
+  }
+  </script>
+
+  <title>BPA 3D AoO Analyzer</title>
+
+<!-- ===== Fonts ===== -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+<!-- ===== Styles ===== -->
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: #0f1115;
+  color: #e6e6e6;
+  overflow: hidden;
+}
+
+/* ===== Layout ===== */
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ===== Sidebar ===== */
+#sidebar {
+  width: 550px;
+  background: #151821;
+  border-right: 1px solid #222;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  position: relative;   
+  transition: width 0.35s ease;
+  overflow-y: auto;   
+  
+  scrollbar-width: thin;
+  scrollbar-color: #5b8cff #0f1115;
+}
+
+#sidebar h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+#sidebar p {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 24px;
+}
+
+#sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+#sidebar::-webkit-scrollbar-track {
+  background: #0f1115;
+  border-radius: 8px;
+}
+
+#sidebar::-webkit-scrollbar-thumb {
+  background: #2a2e3b;
+  border-radius: 8px;
+}
+
+#sidebar::-webkit-scrollbar-thumb:hover {
+  background: #5b8cff;
+}
+
+
+/* ===== Coordinate Plane ===== */
+#coord-plane {
+  position: relative;
+  width: 400px;
+  height: 400px;
+  margin: 12px auto;
+  background: #0f1115;
+  border: 1px solid #2a2e3b;
+}
+
+/* Axes */
+.axis {
+  position: absolute;
+  background: #555;
+}
+
+/* Origin */
+.x-axis {
+  height: 1px;
+  width: 100%;
+  top: 85%;          
+  left: 0;
+}
+
+.y-axis {
+  width: 1px;
+  height: 100%;
+  left: 15%;         
+  top: 0;
+}
+
+/* Origin (0,0) */
+.origin {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #aaa;
+  border-radius: 50%;
+  left: calc(15% - 3px);
+  top: calc(85% - 3px);
+}
+
+/* ===== Surface square ===== */
+.surface-square {
+  position: absolute;
+  width: 120px;      
+  height: 120px;
+  left: calc(25% + 70px); 
+  top: calc(75% - 170px);  
+  border: 2px solid #5b8cff;
+}
+
+/* ===== Corner Input Base ===== */
+.corner-input {
+  position: absolute;
+  width: 36px;
+  height: 20px;
+  background: #0f1115;
+  border: 1px solid #2a2e3b;
+  color: #e6e6e6;
+  font-size: 10px;
+  padding: 2px;
+  text-align: center;
+}
+
+/* ========== TOP LEFT ========== */
+/* x → / y ↓ */
+.tl-x {
+  top: -30px;
+  left: -36px;
+}
+
+.tl-y {
+  top: -30px;
+  left: 0px;
+}
+
+/* ========== TOP RIGHT ========== */
+/* x → / y ↓ */
+.tr-x {
+  top: -30px;
+  right: 0px;
+}
+
+.tr-y {
+  top: -30px;
+  right: -36px;
+}
+
+/* ========== BOTTOM RIGHT ========== */
+/* x → / y ↑ */
+.br-x {
+  bottom: -30px;
+  right: 0px;
+}
+
+.br-y {
+  bottom: -30px;
+  right: -36px;
+}
+
+/* ========== BOTTOM LEFT ========== */
+/* x → / y ↑ */
+.bl-x {
+  bottom: -30px;
+  left: -36px;
+}
+
+.bl-y {
+  bottom: -30px;
+  left: 0px;
+}
+
+/* ===== Corner Dots ===== */
+.corner-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ff4d4d;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(255, 77, 77, 0.8);
+}
+
+/* Positions */
+.tl-dot {
+  top: -4px;
+  left: -4px;
+}
+
+.tr-dot {
+  top: -4px;
+  right: -4px;
+}
+
+.br-dot {
+  bottom: -4px;
+  right: -4px;
+}
+
+.bl-dot {
+  bottom: -4px;
+  left: -4px;
+}
+
+/* ===== Input Groups ===== */
+.group {
+  margin-bottom: 20px;
+}
+
+label {
+  font-size: 12px;
+  color: #bbb;
+  display: block;
+}
+
+input[type="file"],
+textarea {
+  width: 100%;
+  background: #0f1115;
+  border: 1px solid #2a2e3b;
+  color: #e6e6e6;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+textarea {
+  resize: none;
+  height: 70px;
+  font-family: monospace;
+}
+
+button {
+  background: linear-gradient(135deg, #5b8cff, #3b5bdb);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+#status {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #7dd3fc;
+}
+
+#viewer {
+  flex: 1;
+  position: relative;
+}
+
+#footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+
+  min-height: 32px;
+  padding: 6px 0;      
+  line-height: 1.2;      
+
+  background: #0b0d12;
+  border-top: 1px solid #222;
+
+  font-size: 12px;
+  color: #9aa3b2;       
+  text-align: center;
+  letter-spacing: 0.3px;
+
+  z-index: 20;
+}
+
+/* ===== Collapse Handle ===== */
+#collapse-handle {
+  position: absolute;
+  top: 0;
+  right: -14px;   
+  width: 14px;
+  height: 100%;
+
+  background: #0f1115;
+  border-left: 1px solid #2a2e3b;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  z-index: 10;
+}
+
+#collapse-icon {
+  font-size: 12px;
+  color: #9aa3b2;
+  user-select: none;
+  transition: transform 0.3s ease;
+}
+
+#collapse-handle:hover {
+  background: #111827;
+}
+
+#sidebar.collapsed > *:not(#collapse-handle) {
+  display: none;
+}
+
+#sidebar.collapsed {
+  width: 1px;    
+  padding: 0;
+  overflow: hidden;
+}
+
+.file-group {
+  margin-bottom: 18px;
+}
+
+.group-title {
+  font-size: 12px;
+  margin-bottom: 8px;
+  text-align: center;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.file-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f1115;
+  border: 1px solid #2a2e3b;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.file-input-wrapper input[type="file"] {
+  display: none;
+}
+
+.file-btn {
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #5b8cff, #3b5bdb);
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.file-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.file-name {
+  font-size: 10px;
+  color: #9aa3b2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.method-title {
+  text-align: center;
+  font-size: 12px;
+  margin-bottom: 8px;
+  letter-spacing: 0.4px;
+}
+
+.method-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.method-toggle input {
+  display: none;
+}
+
+.method-toggle label {
+  background: #0f1115;
+  border: 1px solid #2a2e3b;
+  border-radius: 6px;
+  padding: 8px 6px;        
+  cursor: pointer;
+  transition: all 0.22s ease;
+  text-align: center;
+}
+
+.title {
+  font-size: 12px;             
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.desc {
+  font-size: 10px;              
+  color: #9ca3af;
+  margin-top: 1px;
+}
+
+.method-toggle input:checked + label {
+  border-color: #5b8cff;
+  background: linear-gradient(135deg, #1f2937, #111827);
+  box-shadow: 0 0 0 1px rgba(91,140,255,0.5);
+}
+
+#legend {
+  position: absolute;
+  right: 12px;
+  bottom: 40px;
+
+  background: rgba(15, 17, 21, 0.75);
+  border: 1px solid #2a2e3b;
+  border-radius: 6px;
+
+  padding: 6px 8px;
+  font-size: 10px;
+  color: #cbd5e1;
+
+  z-index: 5;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.3;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot.x { background: #ff4d4d; } /* X - red */
+.dot.y { background: #4ade80; } /* Y - green */
+.dot.z { background: #5b8cff; } /* Z - blue */
+
+/* ===== Coord Plane Axis Legend ===== */
+.axis-legend {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+
+  background: rgba(15, 17, 21, 0.7);
+  border: 1px solid #2a2e3b;
+  border-radius: 4px;
+
+  padding: 4px 6px;
+  font-size: 10px;
+  color: #cbd5e1;
+}
+
+.axis-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.2;
+}
+
+.axis-line {
+  width: 10px;
+  height: 2px;
+  display: inline-block;
+}
+
+.axis-line.x {
+  background: #ff4d4d; /* X = red */
+}
+
+.axis-line.y {
+  background: #4ade80; /* Y = green */
+}
+
+/* ===== Axis Labels ===== */
+.x-axis::after {
+  content: "x";
+  position: absolute;
+  right: 5px;       
+  top: -15px;       
+  font-size: 10px;
+}
+
+.y-axis::after {
+  content: "y";
+  position: absolute;
+  top: 4px;         
+  left: 5px;      
+  font-size: 10px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ===== Selection View Layout ===== */
+.selection-view {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+
+  background: rgba(15, 17, 21, 0.85);
+  backdrop-filter: blur(3px);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 20px;
+  gap: 14px;
+}
+
+.selection-image-wrapper {
+  width: 80%;
+  height: 55vh;          
+  max-height: 55vh;
+  margin-top: 40px; 
+
+  border: 1px solid #2a2e3b;
+  overflow: hidden;   
+  background: #0b0d12;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selection-image {
+  max-width: 100%;
+  max-height: 100%;
+  user-select: none;
+  cursor: grab;
+}
+
+.selection-controls,
+.selection-actions {
+  z-index: 2;
+}
+
+.threshold-row input[type="number"] {
+  width: 96px;        
+  padding: 7px 10px;
+  font-size: 12px;
+  text-align: left;
+
+  background: linear-gradient(135deg, #111827, #0f1115);
+  color: #e6e6e6;
+
+  border: 1px solid #3b5bdb;  
+  border-radius: 6px;
+
+  box-shadow: 0 0 0 1px rgba(91,140,255,0.25);
+  transition: all 0.2s ease;
+}
+
+.threshold-row input[type="number"]:focus {
+  outline: none;
+  border-color: #5b8cff;
+  background: linear-gradient(135deg, #1f2937, #111827);
+  box-shadow: 0 0 0 1px rgba(91,140,255,0.55);
+}
+
+.guide-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.guide-row .method-title {
+  margin: 0;
+  text-align: left;
+  flex: 1;
+}
+
+#userGuideBtn {
+  padding: 10px 16px;
+  font-size: 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.modal-body {
+  padding: 16px 18px;
+
+  max-height: calc(80vh - 60px); 
+  overflow-y: auto;
+
+  font-size: 13px;
+  line-height: 1.6;
+
+  scrollbar-width: thin;               
+  scrollbar-color: #5b8cff #0f1115;     
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #0f1115;
+  border-radius: 8px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #2a2e3b;
+  border-radius: 8px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #5b8cff;
+}
+
+/* ===== MODAL BASE ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* ===== MODAL CONTENT ===== */
+.modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 720px;
+  max-height: 80vh;
+
+  margin: auto;
+  top: 50%;
+  transform: translateY(-50%);
+
+  background: #0f1115;
+  border: 1px solid #2a2e3b;
+  border-radius: 12px;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+}
+
+/* ===== HEADER ===== */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 14px 18px;
+  border-bottom: 1px solid #2a2e3b;
+}
+
+.modal-header h2 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.modal-header button {
+  background: none;
+  border: none;
+  color: #9aa3b2;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* ===== BODY ===== */
+.modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.modal-body h3 {
+  font-size: 14px;
+  margin-top: 18px;
+  margin-bottom: 6px;
+  color: #5b8cff;
+}
+
+.modal-body p,
+.modal-body li {
+  color: #d1d5db;
+}
+
+.modal-body ul,
+.modal-body ol {
+  padding-left: 18px;
+}
+
+
+body { margin: 0; overflow: hidden; }
+  #info {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    background: rgba(0,0,0,0.6);
+    padding: 8px 12px;
+    border-radius: 6px;
+  }
+
+
+</style>
+</head>
+
+<script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"></script>
+
+<body>
+
+  <div style="
+    width: 100%;
+    background-color: #d32f2f;
+    color: white;
+    text-align: center;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+">
+    <strong>Legal Disclaimer:</strong>
+    This application is developed exclusively for testing and experimental purposes. 
+    The developers make no warranties regarding the accuracy, completeness, or reliability of any outputs. 
+    Furthermore, no legal responsibility is accepted for the storage, security, processing, or potential retention 
+    of any uploaded images or data. By using this application, you acknowledge and accept these terms.
+</div>
+
+<!-- Sayfa içeriğinin banner altında kalmaması için -->
+<div style="margin-top: 70px;"></div>
+
+    <div id="app">
+
+      <!-- ===== Sidebar ===== -->
+      <div id="sidebar">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <h1 style="flex:1;">BPA 3D AoO Analyzer</h1>
+        </div>
+
+        <div class="guide-row">
+          <p>Interactive forensic reconstruction tool</p>
+          <button id="userGuideBtn">User Guide</button>
+        </div>
+
+
+        <div class="group file-group">
+          <label class="group-title">Bloodstain Image</label>
+
+          <div class="file-input-wrapper">
+            <input type="file" id="imgInput" accept="image/*">
+            <label for="imgInput" class="file-btn">
+              Upload Image
+            </label>
+            <span id="fileName" class="file-name">No file selected</span>
+          </div>
+        </div>
+            
+        <div class="group">
+          <label class="method-title">Surface Coordinates (cm)</label>
+
+          <div id="coord-plane">
+
+            <!-- X and Y axes -->
+            <div class="axis x-axis"></div>
+            <div class="axis y-axis"></div>
+
+            <!-- Origin -->
+            <div class="origin"></div>
+
+            <!-- Surface square -->
+            <div class="surface-square">
+
+                <!-- Corner dots -->
+              <div class="corner-dot tl-dot"></div>
+              <div class="corner-dot tr-dot"></div>
+              <div class="corner-dot br-dot"></div>
+              <div class="corner-dot bl-dot"></div>
+
+              <!-- Corner inputs -->
+              <input id="tl_x" class="corner-input tl-x" placeholder="x">
+              <input id="tl_y" class="corner-input tl-y" placeholder="y">
+
+              <input id="tr_x" class="corner-input tr-x" placeholder="x">
+              <input id="tr_y" class="corner-input tr-y" placeholder="y">
+
+              <input id="br_x" class="corner-input br-x" placeholder="x">
+              <input id="br_y" class="corner-input br-y" placeholder="y">
+
+              <input id="bl_x" class="corner-input bl-x" placeholder="x">
+              <input id="bl_y" class="corner-input bl-y" placeholder="y">
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ML based or heuristic --> 
+        <div class="group">
+          <label class="method-title">Ellipse Acceptance Method</label>
+
+          <div class="method-toggle">
+            <input type="radio" id="method-ml" name="ellipse_method" value="ml" checked>
+            <label for="method-ml">
+              <span class="title">
+                <span class="icon icon-ml">🧠 </span> ML-Based
+              </span>
+              <br>
+              <span class="desc">
+                Uses a trained model to detect valid ellipses
+              </span>
+            </label>
+
+            <input type="radio" id="method-rule" name="ellipse_method" value="rule">
+            <label for="method-rule">
+              <span class="title">
+                <span class="icon icon-rule">📐 </span> Rule-Based
+              </span>
+              <br>
+              <span class="desc">
+                Uses predefined or user-defined geometric thresholds
+              </span>
+            </label>
+          </div>
+        </div>
+
+
+
+        <!-- AoO method (ONLY for Rule-Based) -->
+        <div class="group" id="aoo-method-group" style="display: none;">
+          <label class="method-title">AoO Reconstruction Method</label>
+
+          <div class="method-toggle">
+            <input type="radio" id="method-auto" name="metric_method" value="auto" checked>
+            <label for="method-auto">
+              <span class="title">
+                <span class="icon icon-auto">⚙️ </span> Auto
+              </span>
+              <br>
+              <span class="desc">
+                Automatically applies predefined metrics
+              </span>
+            </label>
+
+            <input type="radio" id="method-manual" name="metric_method" value="manual">
+            <label for="method-manual">
+              <span class="title">
+                <span class="icon icon-manual">✍️ </span> Manual
+              </span>
+              <br>
+              <span class="desc">
+                Requires user-defined metric inputs
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <button id="analyzeBtn">Analyze</button>
+        <div id="status"></div>
+
+        <br>
+
+        <div class="group" hidden>
+          <label class="method-title">Select Method For 3D Visualization</label>
+          <div class="method-toggle">
+            <input type="radio" id="method-tangent" name="method" value="tangent" checked>
+            <label for="method-tangent">
+              <span class="title">Tangent</span>
+              <span class="desc">Trigonometric</span>
+            </label>
+
+            <input type="radio" id="method-ls" name="method" value="ls">
+            <label for="method-ls">
+              <span class="title">Least Squares</span>
+              <span class="desc">3D Intersection</span>
+            </label>
+          </div>
+        </div>
+
+          
+        <!-- Collapse Handle -->
+        <div id="collapse-handle">
+          <span id="collapse-icon">◀</span>
+        </div>
+          
+      </div>
+
+        <!-- ===== 3D Viewer ===== -->
+      <div id="viewer">
+
+        <div id="selection-view" class="selection-view" style="display:none; padding:16px;">
+
+          <div class="selection-image-wrapper">
+            <img
+              id="selection-image"
+              class="selection-image"
+            />
+          </div>
+
+          <div class="selection-controls" style="width:80%; max-width:520px;">
+
+            <div class="group">
+              <div class="threshold-row">
+                <span class="title">Outside Threshold</span>
+                <input type="number" step="0.01" id="sel-outside">
+              </div>
+
+              <div class="desc">
+                Controls how much of the bloodstain contour is allowed to fall outside the fitted ellipse.
+                Lower values select cleaner and more regular stains.
+              </div>
+            </div>
+
+            <div class="group">
+              <div class="threshold-row">
+                <span class="title">Area Ratio Threshold</span>
+                <input type="number" step="0.01" id="sel-area">
+              </div>
+
+              <div class="desc">
+                Limits how large the fitted ellipse can be compared to the actual stain area.
+                Prevents over-expanded ellipses from being accepted.
+              </div>
+            </div>
+
+            <div class="group">
+               <div class="threshold-row">
+                <span class="title">Overlap Threshold</span>
+                <input type="number" step="0.01" id="sel-overlap">
+              </div>
+
+              <div class="desc">
+                Defines how much of the ellipse interior must be filled by the bloodstain.
+                Helps eliminate hollow or poorly fitted ellipses.
+              </div>
+            </div>
+
+          </div>
+
+
+          <div class="selection-actions">
+            <button id="continueSelection">Continue with the new values</button>
+            <button id="confirmSelection">Complete the analysis</button>
+          </div>
+
+        </div>
+
+
+        <div id="legend" class="hidden">
+          <div class="legend-row">
+            <span class="dot x"></span> X axis
+          </div>
+          <div class="legend-row">
+            <span class="dot y"></span> Y axis
+          </div>
+          <div class="legend-row">
+            <span class="dot z"></span> Z axis
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== USER GUIDE MODAL ===== -->
+    <div id="userGuideModal" class="modal hidden">
+
+      <div class="modal-backdrop"></div>
+
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h2>User Guide</h2>
+          <button id="closeGuideBtn">✕</button>
+        </div>
+
+        <div class="modal-body">
+
+        <section>
+          <h3>User Guide</h3>
+          <p>
+            This application provides an interactive workflow for bloodstain pattern
+            analysis and Area of Origin (AoO) reconstruction.
+          </p>
+        </section>
+
+        <section>
+          <h3>1. Upload Image</h3>
+          <p>
+            Use the <b>Upload Image</b> section to load the image that will be analyzed.
+          </p>
+        </section>
+
+        <section>
+          <h3>2. Define Surface Coordinates</h3>
+          <p>
+            Using the coordinate system, enter the real-world coordinates of the image
+            corners in <b>centimeters (cm)</b>.
+            These values represent the physical dimensions of the surface on which the
+            bloodstains are located.
+          </p>
+        </section>
+
+        <section>
+
+  <!-- 🔽 1. VALIDATION MODE -->
+  <h3>3. Select Validation Mode</h3>
+  <p>
+    Choose how detected ellipses are validated before analysis.
+  </p>
+
+  <ul>
+    <li>
+      <b>ML-Based Validation:</b><br>
+      Ellipses are validated through a machine learning–based filter.
+      No user action is required during this process.
+    </li>
+
+    <li>
+      <b>Rule-Based Validation:</b><br>
+      Ellipse validation is performed using predefined rules and threshold values.
+      <!-- When this mode is selected, you can choose how the analysis will be conducted. -->
+    </li>
+  </ul>
+
+  <!-- 🔽 2. ANALYSIS MODE (SADECE RULE-BASED İÇİN) 
+  <div style="margin-top:16px; padding-left:12px; border-left:3px solid #ccc;">
+
+    <h4>Analysis Mode (for Rule-Based Validation)</h4>
+    <p>
+      Choose either <b>Auto</b> or <b>Manual</b> analysis mode.
+    </p>
+
+    <ul>
+      <li>
+        <b>Auto Mode:</b><br>
+        The analysis is performed automatically using predefined metric values.
+      </li>
+
+      <li>
+        <b>Manual Mode:</b><br>
+        When selected, an image processed with default threshold values is displayed.
+        This view indicates which bloodstains are included in the analysis and which
+        are excluded.
+
+        <div style="margin-top:8px; padding-left:12px;">
+
+          <p>
+            <b>Threshold Adjustment:</b><br>
+            In Manual Mode, threshold values can be adjusted to control which
+            bloodstains are included or excluded from the analysis.
+            This step is intended for advanced users and allows fine-tuning of stain
+            selection.
+          </p>
+
+          <p>
+            <b>Refining and Confirming the Analysis:</b><br>
+            Click the <b>Continue</b> button to rerun the analysis using the updated
+            threshold values. A new set of selected bloodstains will be displayed.
+            Once the selection is finalized, confirm the process using the
+            <b>Complete</b> button to complete the analysis.
+          </p>
+
+        </div>
+      </li>
+    </ul>
+
+  </div>
+-->
+
+</section>
+
+        <section>
+          <h3>4. Analysis Results</h3>
+          <p>
+            After completion, the analysis report is displayed in the side panel.
+            The report includes the results of two different Area of Origin (AoO)
+            reconstruction algorithms along with the calculated coordinates of the
+            impact source or sources.
+          </p>
+        </section>
+
+        <section>
+          <h3>5. 3D Visualization</h3>
+          <p>
+            A three-dimensional visualization of the scene is generated in the main view.
+            This visualization represents the 3D reconstruction of the coordinates
+            reported in the analysis.
+          </p>
+          <p>
+            Using the sidebar, the visualization can be switched between
+            <b>Tangent</b> and <b>Least Squares</b> methods.
+            By default, the Tangent method visualization is displayed.
+          </p>
+        </section>
+
+      </div>
+
+    </div>
+    </div>
+
+
+    <div id="footer">
+      Forensic Visualization Module<br>
+      © 2026 · Buse Nur Sabah
+    </div>
+
+
+<script type="module">
+  
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.152/build/three.module.js";
+import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.152/examples/jsm/controls/OrbitControls.js";
+
+/* =====================================================
+   JSON data coming from app
+===================================================== */
+let data;
+
+/* =====================================================
+   SCALE CONFIG
+   1 Three.js unit = CM_PER_UNIT cm
+===================================================== */
+let CM_PER_UNIT = 1.0; // 🔧 burayı değiştir
+function S(x) { return x / CM_PER_UNIT; }
+
+/* =====================================================
+   SCENE
+===================================================== */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f1115);
+
+const camera = new THREE.PerspectiveCamera(60, 1, 1, 10000);
+camera.position.set(0, -800, 600);
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+document.getElementById("viewer").appendChild(renderer.domElement);
+renderer.domElement.style.display = "none";
+
+/* =====================================================
+   CONTROLS
+===================================================== */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+/* =====================================================
+   LIGHTS
+===================================================== */
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+
+const light = new THREE.DirectionalLight(0xffffff, 0.9);
+light.position.set(500, -500, 800);
+scene.add(light);
+
+/* =====================================================
+   HELPERS
+===================================================== */
+scene.add(new THREE.AxesHelper(200));
+
+/* =====================================================
+   RESIZE
+===================================================== */
+function resize() {
+  const v = document.getElementById("viewer");
+  const w = v.clientWidth;
+  const h = v.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize);
+resize();
+
+/* ================= LABEL (TEXT SPRITE) ================= */
+function makeLabel(text) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 128;
+
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgba(0,0,0,0.65)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "28px monospace";
+  ctx.fillText(text, 12, 42);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true
+  });
+
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(60, 15, 1); // cm
+
+  return sprite;
+}
+
+/* =====================================================
+   ANALYZE
+===================================================== */
+async function analyze(extra = {}) {
+  const statusEl = document.getElementById("status");
+
+  if (!imgInput.files[0]) {
+    alert("Please select an image");
+    return;
+  }
+
+  if (!areCornersValid()) {
+    alert("Please enter all surface coordinates (X–Y values)");
+    return;
+  }
+
+  statusEl.textContent = "Analyzing…";
+
+  try {
+    const form = new FormData();
+    form.append("image", imgInput.files[0]);
+    form.append("corners", JSON.stringify(getCorners()));
+
+    let ellipse_method = document.querySelector('input[name="ellipse_method"]:checked').value
+    if (ellipse_method == "ml")
+      form.append("metric_method", "auto");
+    else
+      form.append("metric_method", getMetricMode());
+
+    form.append("ellipse_method", ellipse_method);
+
+    if (extra.outside_thresh !== undefined)
+      form.append("outside_thresh", extra.outside_thresh);
+    if (extra.area_ratio_thresh !== undefined)
+      form.append("area_ratio_thresh", extra.area_ratio_thresh);
+    if (extra.overlap_thresh !== undefined)
+      form.append("overlap_thresh", extra.overlap_thresh);
+    if (extra.selection_is_ok !== undefined)
+      form.append("selection_is_ok", extra.selection_is_ok);
+
+    const res = await fetch("/analyze", {
+      method: "POST",
+      body: form
+    });
+
+    if (!res.ok) throw new Error("Server error");
+
+    const contentType = res.headers.get("Content-Type");
+    
+    // FINAL → multipart (JSON + PDF)
+    if (contentType && contentType.includes("multipart/mixed")) {
+      const boundary = contentType.split("boundary=")[1];
+      
+      // YENİ - DOĞRU
+const buffer = await res.arrayBuffer();
+const bytes = new Uint8Array(buffer);
+
+// boundary'yi bul
+const boundaryStr = `--${boundary}`;
+const enc = new TextEncoder();
+const boundaryBytes = enc.encode(boundaryStr);
+
+// text kısmını güvenli parse et
+const text = new TextDecoder("latin1").decode(buffer);
+const parts = text.split(`--${boundary}`);
+
+      let jsonData = null;
+      let pdfBlob = null;
+
+      for (const part of parts) {
+        if (part.includes("application/json")) {
+          jsonData = JSON.parse(part.split("\r\n\r\n")[1].trim());
+        }
+        if (part.includes("application/pdf")) {
+          const body = part.split("\r\n\r\n").slice(1).join("\r\n\r\n");
+const pdfBytes = Uint8Array.from(body, c => c.charCodeAt(0));
+pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+        }
+      }
+
+      data = jsonData
+      renderScene();
+      window.open(URL.createObjectURL(pdfBlob), "_blank");
+    } else {
+      data = await res.json();
+      renderSceneForSelection();
+    }
+
+    statusEl.textContent = "Done ✔";
+  } catch (err) {
+    statusEl.textContent = "Error";
+  }
+}
+
+/* =====================================================
+   RENDER SCENE FOR SELECTION
+===================================================== */
+function renderSceneForSelection() {
+  renderer.domElement.style.display = "none";
+  document.getElementById("legend").classList.add("hidden");
+
+  const img = document.getElementById("selection-image");
+  img.style.transform = "translate(0px, 0px) scale(1)";
+
+  document.getElementById("selection-image").src = "data:image/png;base64," + data.image;
+  document.getElementById("selection-view").style.display = "flex";
+  document.getElementById("sel-outside").value = data.outside_thresh;
+  document.getElementById("sel-area").value = data.area_ratio_thresh;
+  document.getElementById("sel-overlap").value = data.overlap_thresh;
+
+  enablePanZoom();
+
+  document.getElementById("continueSelection").onclick = () => {
+    analyze({
+      outside_thresh: parseFloat(document.getElementById("sel-outside").value),
+      area_ratio_thresh: parseFloat(document.getElementById("sel-area").value),
+      overlap_thresh: parseFloat(document.getElementById("sel-overlap").value),
+      selection_is_ok: false
+    });
+  };
+
+    document.getElementById("confirmSelection").onclick = () => {
+      analyze({
+        outside_thresh: parseFloat(document.getElementById("sel-outside").value),
+        area_ratio_thresh: parseFloat(document.getElementById("sel-area").value),
+        overlap_thresh: parseFloat(document.getElementById("sel-overlap").value),
+        selection_is_ok: true
+      });
+    };
+} 
+
+/* =====================================================
+   RENDER SCENE
+===================================================== */
+function renderScene() {
+  renderer.domElement.style.display = "block";
+  document.getElementById("selection-view").style.display = "none";
+  document.getElementById("legend").classList.remove("hidden");
+
+  /* ================= SCENE CLEAN ================= */
+  scene.children = scene.children.filter(
+    o => o.type === "AmbientLight" ||
+         o.type === "DirectionalLight" ||
+         o.type === "AxesHelper"
+  );
+
+  /* ================= CONSTANTS ================= */
+  const CUBE_SIZE = 500;
+
+  /* ================= CUBE ================= */
+  const cube = new THREE.Mesh(
+    new THREE.BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE),
+    new THREE.MeshBasicMaterial({
+      wireframe: true,
+      transparent: true,
+      opacity: 0.25
+    })
+  );
+  cube.position.set(CUBE_SIZE/2, CUBE_SIZE/2, CUBE_SIZE/2);
+  scene.add(cube);
+
+  /* ================= XY WALL (Z=0) ================= */
+  const wall = new THREE.Mesh(
+    new THREE.PlaneGeometry(CUBE_SIZE, CUBE_SIZE),
+    new THREE.MeshStandardMaterial({
+      color: 0x222222,
+      side: THREE.DoubleSide
+    })
+  );
+  wall.position.set(CUBE_SIZE/2, CUBE_SIZE/2, 0);
+  scene.add(wall);
+
+  /* ================= SURFACE RECTANGLE ================= */
+  const corners = getCorners(); // [[x,y], ...]
+  if (corners.length === 4) {
+    const shape = new THREE.Shape();
+    shape.moveTo(corners[0][0], corners[0][1]);
+    for (let i=1;i<corners.length;i++) {
+      shape.lineTo(corners[i][0], corners[i][1]);
+    }
+    shape.lineTo(corners[0][0], corners[0][1]);
+
+    const geo = new THREE.ShapeGeometry(shape);
+    const surf = new THREE.Mesh(
+      geo,
+      new THREE.MeshBasicMaterial({
+        color: 0x5b8cff,
+        transparent: true,
+        opacity: 0.35,
+        side: THREE.DoubleSide
+      })
+    );
+    surf.position.z = 0.1; // slightly in front of the wall
+    scene.add(surf);
+  }
+
+  /* ================= CLUSTERS ================= */
+  data.clusters.forEach(cluster => {
+
+    /* ===== METHOD CHECK ===== */
+    const method = getSelectedMethod()
+    let aoo;
+    if (method === "tangent") {
+      if (!cluster.aoo_tangent) return;
+      aoo = cluster.aoo_tangent;
+    } else {
+      if (!cluster.aoo_least_square) return;
+      aoo = cluster.aoo_least_square;
+    } 
+
+    const [ax, ay, az] = aoo;
+    
+    const color = new THREE.Color(
+      `rgb(${cluster.color[0]},${cluster.color[1]},${cluster.color[2]})`
+    );
+
+    /* ===== AoO POINT ===== */
+    const ao = new THREE.Mesh(
+      new THREE.SphereGeometry(6, 32, 32),
+      new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 0.7
+      })
+    );
+    ao.position.set(ax, ay, az);
+    scene.add(ao);
+
+    /* ===== LABEL ===== */
+    const label = makeLabel(
+      `x=${ax.toFixed(1)} y=${ay.toFixed(1)} z=${az.toFixed(1)} cm`
+    );
+    label.position.set(ax + 10, ay + 10, az + 10);
+    label.visible = false;      
+    ao.userData.label = label;      
+    scene.add(label);
+
+    /* ===== RAYS (STAIN → AoO) ===== */
+    data.rays_3d.forEach(ray => {
+
+      // only cluster's stains
+      if (!cluster.line_ids.includes(ray.line_id)) return;
+
+      // === STAIN (DUVAR ÜZERİNDE) ===
+      const stain = new THREE.Vector3(
+        ray.origin[0],
+        ray.origin[1],
+        ray.origin[2]   // z = 0
+      );
+
+      
+      // === AoO ===
+      const aoo = new THREE.Vector3(ax, ay, az);
+
+      // === stain → AoO ===
+      const dir = new THREE.Vector3()
+        .subVectors(aoo, stain)
+        .normalize();
+
+      const distance = stain.distanceTo(aoo);
+      const STEP = 1; // cm
+
+      const pts = [];
+
+      for (let t = 0; t <= distance; t += STEP) {
+
+        const p = stain.clone().add(dir.clone().multiplyScalar(t));
+
+        // === cube borders - prevent overflow ===
+        if (
+          p.x < 0 || p.x > CUBE_SIZE ||
+          p.y < 0 || p.y > CUBE_SIZE ||
+          p.z < 0 || p.z > CUBE_SIZE
+        ) break;
+
+        pts.push(p);
+      }
+
+      pts.push(aoo.clone());
+
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const line = new THREE.Line(
+        geo,
+        new THREE.LineBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.8
+        })
+      );
+
+      scene.add(line);
+    });
+  });
+
+  /* ================= CAMERA ================= */
+  camera.position.set(250, -700, 600);
+  controls.target.set(250, 250, 250);
+  controls.update();
+}
+
+/* =====================================================
+   ANIMATE
+===================================================== */
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+/* =====================================================
+   GETS FUNCTIONS
+===================================================== */
+function getCorners() {
+  return [
+    [+tl_x.value, +tl_y.value],
+    [+tr_x.value, +tr_y.value],
+    [+br_x.value, +br_y.value],
+    [+bl_x.value, +bl_y.value]
+  ];
+}
+
+function getSelectedMethod() {
+  return document.querySelector('input[name="method"]:checked').value;
+}
+
+function getMetricMode() {
+  return document.querySelector('input[name="metric_method"]:checked').value;
+}
+
+/* =====================================================
+   RECTANGLE AUTO SYNC AND VALIDATION
+===================================================== */
+const pairs = {
+  tl_x: "bl_x",
+  bl_x: "tl_x",
+
+  tr_x: "br_x",
+  br_x: "tr_x",
+
+  tl_y: "tr_y",
+  tr_y: "tl_y",
+
+  bl_y: "br_y",
+  br_y: "bl_y",
+};
+
+Object.keys(pairs).forEach(id => {
+  const el = document.getElementById(id);
+  const pairEl = document.getElementById(pairs[id]);
+
+  el.addEventListener("input", () => {
+    el.value = el.value.replace(/\D/g, "");
+    if (pairEl.value !== el.value) {
+      pairEl.value = el.value;
+    }
+  });
+});
+
+function areCornersValid() {
+  const ids = [
+    "tl_x","tl_y",
+    "tr_x","tr_y",
+    "br_x","br_y",
+    "bl_x","bl_y"
+  ];
+
+  for (const id of ids) {
+    const v = document.getElementById(id).value;
+    if (v === "" || isNaN(Number(v))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+/* =====================================================
+   IMAGE ZOOM
+===================================================== */
+let panzoomInstance = null;
+function enablePanZoom() {
+  const img = document.getElementById("selection-image");
+  const wrapper = document.querySelector(".selection-image-wrapper");
+
+  if (panzoomInstance) {
+    panzoomInstance.dispose();
+  }
+
+  panzoomInstance = panzoom(img, {
+    maxZoom: 6,
+    minZoom: 1,          
+    zoomSpeed: 0.08,
+    bounds: true,
+    boundsPadding: 0,
+    contain: 'inside'
+  });
+
+  // reset
+  panzoomInstance.moveTo(0, 0);
+  panzoomInstance.zoomAbs(
+    wrapper.clientWidth / 2,
+    wrapper.clientHeight / 2,
+    1
+  );
+}
+
+  
+/* =====================================================
+   EVENTS
+===================================================== */
+// ✅ UI: show AoO options only when Rule-Based is selected
+document.addEventListener("DOMContentLoaded", () => {
+  const mlRadio   = document.getElementById("method-ml");
+  const ruleRadio = document.getElementById("method-rule");
+  const aooGroup  = document.getElementById("aoo-method-group");
+
+  function updateAoOVisibility() {
+    //aooGroup.style.display = ruleRadio.checked ? "block" : "none";
+  }
+
+  mlRadio.addEventListener("change", updateAoOVisibility);
+  ruleRadio.addEventListener("change", updateAoOVisibility);
+
+  updateAoOVisibility();
+});
+
+document.getElementById("collapse-handle").addEventListener("click", () => {
+  const sidebar = document.getElementById("sidebar");
+
+  sidebar.classList.toggle("collapsed");
+
+  document.getElementById("collapse-icon").textContent = sidebar.classList.contains("collapsed")
+    ? "▶"
+    : "◀";
+
+  // Viewer resize (VERY IMPORTANT for Three.js)
+  setTimeout(() => {
+    window.dispatchEvent(new Event("resize"));
+  }, 360);
+});
+
+document.getElementById("imgInput").addEventListener("change", e => {
+  const fileNameEl = document.getElementById("fileName");
+  if (e.target.files.length > 0) {
+    fileNameEl.textContent = e.target.files[0].name;
+  } else {
+    fileNameEl.textContent = "No file selected";
+  }
+});
+
+document.getElementById("analyzeBtn")
+  .addEventListener("click", analyze);
+
+document.querySelectorAll('input[name="method"]').forEach(radio => {
+  radio.addEventListener("change", e => {
+    renderScene()
+  });
+});
+
+const modal = document.getElementById("userGuideModal");
+const openBtn = document.getElementById("userGuideBtn");
+const closeBtn = document.getElementById("closeGuideBtn");
+const backdrop = modal.querySelector(".modal-backdrop");
+
+openBtn.addEventListener("click", () => {
+  modal.classList.remove("hidden");
+});
+
+closeBtn.addEventListener("click", closeModal);
+backdrop.addEventListener("click", closeModal);
+
+// ESC close
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+    closeModal();
+  }
+});
+
+function closeModal() {
+  modal.classList.add("hidden");
+}
+
+
+renderer.domElement.addEventListener("mousemove", onMouseMove);
+
+function onMouseMove(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  const aooSpheres = scene.children.filter(
+    o => o.type === "Mesh" && o.geometry.type === "SphereGeometry"
+  );
+
+  const intersects = raycaster.intersectObjects(aooSpheres);
+
+  aooSpheres.forEach(s => {
+    if (s.userData.label) {
+      s.userData.label.visible = false;
+    }
+  });
+
+  if (intersects.length > 0) {
+    const hit = intersects[0].object;
+    if (hit.userData.label) {
+      hit.userData.label.visible = true;
+    }
+  }
+}
+
+
+
+</script>
+</body>
+
+<div id="info">
+  Mouse: Döndür | Tekerlek: Zoom | Sağ tuş: Kaydır
+</div>
+
+</html>
